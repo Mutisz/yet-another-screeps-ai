@@ -5,8 +5,7 @@
 
     /* Modules */
     "rootDir": "src",
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "module": "CommonJS",
     "resolveJsonModule": true,
 
     /* JavaScript Support */

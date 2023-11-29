@@ -1,6 +1,7 @@
 {
   "name": "yet-another-screeps-ai",
   "version": "0.0.1",
+  "type": "module",
   "description": "Comprehensive manager for Screeps: The World MMO handling screep roles, construction, etc.",
   "license": "MIT",
   "author": {
@@ -11,9 +12,8 @@
   "scripts": {
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --config .prettierrc 'src/**/*.ts' --write",
-    "watch": "npx nodemon",
-    "build": "rimraf ./dist && tsc"
+    "prettier:format": "prettier --config .prettierrc 'src/**/*.ts' --write",
+    "ts:build": "rimraf ./dist && tsc"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.202",
@@ -25,7 +25,6 @@
     "eslint-config-prettier": "~9.0",
     "eslint-plugin-prettier": "^5.0.1",
     "lodash": "^4.17.21",
-    "nodemon": "^3.0.1",
     "prettier": "~3.1",
     "rimraf": "^5.0.5",
     "ts-node": "^10.9.1",

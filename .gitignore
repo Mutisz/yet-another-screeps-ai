@@ -1,8 +1,8 @@
-# yarn lock file
-/yarn.lock
+# Screeps Config
+screeps.json
 
-# npm lock file (v5.0.0+)
-/package-lock.json
+# ScreepsServer data from integration tests
+/server
 
 # Ignore basic folders
 /dist
@@ -14,12 +14,6 @@
 
 # TypeScript definitions installed by Typings
 /typings
-
-# Screeps Config
-screeps.json
-
-# ScreepsServer data from integration tests
-/server
 
 # Numerous always-ignore extensions
 *.diff
