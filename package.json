@@ -1,7 +1,12 @@
 {
-  "name": "typescript-starter",
-  "version": "1.0.0",
-  "description": "",
+  "name": "yet-another-screeps-ai",
+  "version": "0.0.1",
+  "description": "Comprehensive manager for Screeps: The World MMO handling screep roles, construction, etc.",
+  "license": "MIT",
+  "author": {
+    "name": "Mateusz Tokarski",
+    "email": "mati.tokarski@gmail.com"
+  },
   "main": "main.js",
   "scripts": {
     "lint": "eslint . --ext .ts",
@@ -10,9 +15,6 @@
     "watch": "npx nodemon",
     "build": "rimraf ./dist && tsc"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@types/lodash": "^4.14.202",
     "@types/node": "^20.10.0",
