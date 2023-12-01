@@ -4,6 +4,9 @@ screeps.json
 # ScreepsServer data from integration tests
 /server
 
+# Environment
+.env
+
 # Ignore basic folders
 /dist
 /.rpt2_cache

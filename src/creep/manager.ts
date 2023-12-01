@@ -89,7 +89,7 @@ const runUpgraders = (room: Room): void => {
   findWorkerByRole(room, ROLE_UPGRADER).forEach((upgrader) => runUpgrader(upgrader));
 };
 
-export const manage = function (spawn: StructureSpawn): void {
+export const onTick = function (spawn: StructureSpawn): void {
   spawnWorker(spawn);
 
   if (findWorkerList(spawn.room).length >= MINIMUM_WORKERS) {

@@ -1,24 +1,13 @@
 {
   "compilerOptions": {
-    /* Language and Environment */
     "target": "ES2018",
-
-    /* Modules */
-    "rootDir": "src",
-    "module": "CommonJS",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
-
-    /* JavaScript Support */
-    "allowJs": true,
-
-    /* Emit */
+    "rootDir": "src",
     "outDir": "dist",
-
-    /* Interop Constraints */
-    "forceConsistentCasingInFileNames": true,
-
-    /* Type Checking */
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   }
 }

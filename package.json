@@ -11,21 +11,28 @@
   "main": "main.js",
   "scripts": {
     "build": "rimraf ./dist && tsc",
-    "deploy:sim": "npm run build "
+    "build:rollup": "rimraf ./dist && rollup -c",
+    "deploy:sim": "npm run build:rollup && node dist-copy"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
     "@types/lodash": "^4.14.202",
     "@types/node": "^20.10.0",
     "@types/screeps": "^3.3.7",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
     "@typescript-eslint/parser": "^6.13.1",
+    "copyfiles": "^2.4.1",
+    "dotenv": "^16.3.1",
     "eslint": "^8.54.0",
     "eslint-config-prettier": "~9.0",
     "eslint-plugin-prettier": "^5.0.1",
     "lodash": "^4.17.21",
     "prettier": "~3.1",
     "rimraf": "^5.0.5",
-    "ts-node": "^10.9.1",
+    "rollup": "^4.6.1",
+    "rollup-plugin-screeps": "^1.0.1",
+    "rollup-plugin-typescript2": "^0.36.0",
     "typescript": "^5.3.2"
   }
 }
