@@ -25,8 +25,6 @@ const findWorkerByRole = (room: Room, role: CreepRoleConstant): Creep[] =>
 const logSpawnResult = (result: ScreepsReturnCode): void => {
   switch (result) {
     case OK:
-      console.log('Spawning new worker...');
-      break;
     case ERR_NOT_ENOUGH_ENERGY:
       break;
     default:
