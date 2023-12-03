@@ -1,8 +1,5 @@
 import {
   WORKER_BODY,
-  MINIMUM_WORKERS,
-  MINIMUM_BUILDERS,
-  MINIMUM_UPGRADERS,
   ROLE_BUILDER,
   ROLE_HARVESTER,
   ROLE_UPGRADER,
@@ -48,7 +45,7 @@ const setUpgraderRole = (worker: Creep): void => {
 };
 
 const spawnWorker = (spawn: StructureSpawn): void => {
-  if (spawn.spawning === null && findWorkerList(spawn.room).length < MINIMUM_WORKERS) {
+  if (spawn.spawning === null && findWorkerList(spawn.room).length < spawn.room.memory.config.workerCountAll) {
     const result = spawn.spawnCreep(WORKER_BODY, generateCreepName('worker'), {
       memory: { role: ROLE_HARVESTER },
     });
@@ -61,8 +58,8 @@ const assignBuilders = (room: Room): void => {
   const shouldAssign = room.find(FIND_MY_CONSTRUCTION_SITES).length > 0;
   const harvesterList = findWorkerByRole(room, ROLE_HARVESTER);
   const builderList = findWorkerByRole(room, ROLE_BUILDER);
-  if (shouldAssign && builderList.length < MINIMUM_BUILDERS) {
-    harvesterList.slice(0, MINIMUM_BUILDERS - builderList.length).forEach(setBuilderRole);
+  if (shouldAssign && builderList.length < room.memory.config.workerCountBuilder) {
+    harvesterList.slice(0, room.memory.config.workerCountBuilder - builderList.length).forEach(setBuilderRole);
   } else if (shouldAssign === false) {
     builderList.forEach(setHarvesterRole);
   }
@@ -72,8 +69,8 @@ const assignUpgraders = (room: Room): void => {
   const shouldAssign = shouldUpgrade(room);
   const harvesterList = findWorkerByRole(room, ROLE_HARVESTER);
   const upgraderList = findWorkerByRole(room, ROLE_UPGRADER);
-  if (shouldAssign && upgraderList.length < MINIMUM_UPGRADERS) {
-    harvesterList.slice(0, MINIMUM_UPGRADERS - upgraderList.length).forEach(setUpgraderRole);
+  if (shouldAssign && upgraderList.length < room.memory.config.workerCountUpgrader) {
+    harvesterList.slice(0, room.memory.config.workerCountUpgrader - upgraderList.length).forEach(setUpgraderRole);
   } else if (shouldAssign === false) {
     upgraderList.forEach(setHarvesterRole);
   }
@@ -92,7 +89,7 @@ const runUpgraders = (room: Room): void => {
 export const onTick = function (spawn: StructureSpawn): void {
   spawnWorker(spawn);
 
-  if (findWorkerList(spawn.room).length >= MINIMUM_WORKERS) {
+  if (findWorkerList(spawn.room).length >= spawn.room.memory.config.workerCountAll) {
     assignBuilders(spawn.room);
     assignUpgraders(spawn.room);
   }

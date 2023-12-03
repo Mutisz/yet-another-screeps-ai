@@ -1,8 +1,9 @@
-import { MAXIMUM_DOWNGRADE_TIMER_FRACTION, MINIMUM_DOWNGRADE_TIMER_FRACTION, MINIMUM_LEVEL } from '../../config/config';
 import { sayWithdraw, sayUpgrade, sayCannotStoreOrWithdraw, sayCannotUpgrade } from '../../util/communicator';
 import { findClosestStorageMostUsed } from '../../util/structureFinder';
 import { moveToWorkerRallyPoint } from '../mover';
 
+const MINIMUM_DOWNGRADE_TIMER_FRACTION = 0.2;
+const MAXIMUM_DOWNGRADE_TIMER_FRACTION = 0.4;
 const DOWNGRADE_TIMER_BY_LEVEL: { [k: number]: number } = {
   1: 20000,
   2: 10000,
@@ -65,18 +66,18 @@ const upgrade = (upgrader: Creep): void => {
 };
 
 export const shouldUpgrade = (room: Room): boolean => {
-  if (room.controller === undefined || room.controller.level > MINIMUM_LEVEL) {
+  if (room.controller === undefined || room.controller.level > room.memory.config.controllerLevel) {
     return false;
-  } else if (room.controller.level < MINIMUM_LEVEL) {
+  } else if (room.controller.level < room.memory.config.controllerLevel) {
     return true;
   }
 
   const timerFraction = room.controller.ticksToDowngrade / DOWNGRADE_TIMER_BY_LEVEL[room.controller.level];
-  if (timerFraction < MINIMUM_DOWNGRADE_TIMER_FRACTION && room.memory.stopUpgrade === false) {
-    room.memory.stopUpgrade = false;
+  if (timerFraction < MINIMUM_DOWNGRADE_TIMER_FRACTION && room.memory.upgrading === true) {
+    room.memory.upgrading = true;
     return true;
   } else if (timerFraction >= MAXIMUM_DOWNGRADE_TIMER_FRACTION) {
-    room.memory.stopUpgrade = true;
+    room.memory.upgrading = false;
   }
 
   return false;

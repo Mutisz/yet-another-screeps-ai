@@ -2,18 +2,21 @@ import { curry } from 'lodash';
 
 const ROAD_COLOR = '#D3D3D3';
 
-interface VisibleRoomObject extends RoomObject {
-  room: Room;
-}
-
-export type RoadStatus = {
+export interface RoadStatus {
   built: boolean;
   constructionIterator: number;
   roadPositionList: PathStep[];
-};
+}
 
-const findRoadPath = (origin: VisibleRoomObject, destination: VisibleRoomObject): PathStep[] =>
-  origin.room.findPath(origin.pos, destination.pos, { ignoreCreeps: true });
+export interface RoadEndpoint {
+  x: number;
+  y: number;
+}
+
+const findRoadPath = (origin: RoomPosition, destination: RoomPosition): PathStep[] => {
+  const room = Game.rooms[origin.roomName];
+  return room.findPath(origin, destination, { ignoreCreeps: true });
+};
 
 const drawRoadPath = (room: Room, path: PathStep[]): void => {
   path.forEach((position) => room.visual.circle(position.x, position.y, { fill: ROAD_COLOR }));
@@ -41,11 +44,9 @@ const buildRoad = (room: Room, roadStatus: RoadStatus): void => {
   drawRoadPath(room, roadStatus.roadPositionList);
 };
 
-export const planRoad = (originId: Id<_HasId & VisibleRoomObject>, targetId: Id<_HasId & VisibleRoomObject>): void => {
-  const origin = Game.getObjectById(originId) as VisibleRoomObject;
-  const destination = Game.getObjectById(targetId) as VisibleRoomObject;
-
-  origin.room.memory.roadList.push({
+export const planRoad = (origin: RoomPosition, destination: RoomPosition): void => {
+  const room = Game.rooms[origin.roomName];
+  room.memory.roadList.push({
     built: false,
     constructionIterator: 0,
     roadPositionList: findRoadPath(origin, destination),

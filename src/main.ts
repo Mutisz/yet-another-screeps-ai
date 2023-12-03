@@ -1,20 +1,78 @@
-import { CreepRoleConstant, MAIN_SPAWN_NAME } from './config/config';
-import { onTick as constructionManagerOnTick, RoadStatus } from './construction/manager';
+import { isEmpty } from 'lodash';
+import { CreepRoleConstant, MAIN_SPAWN_NAME, RoomLevel } from './config/config';
+import { onTick as constructionManagerOnTick, planRoad, RoadStatus } from './construction/manager';
 import { onTick as creepManagerOnTick } from './creep/manager';
 
+type RoomObjectId = Id<_HasId & RoomObject>;
+
 declare global {
+  interface RoomConfig {
+    controllerLevel: RoomLevel;
+    workerCountAll: number;
+    workerCountBuilder: number;
+    workerCountUpgrader: number;
+  }
   interface RoomMemory {
-    stopUpgrade: boolean;
+    config: RoomConfig;
+    upgrading: boolean;
     roadList: RoadStatus[];
   }
   interface CreepMemory {
     role: CreepRoleConstant;
   }
+
+  function setControllerLevel(roomName: string, controllerLevel: RoomLevel): void;
+  function setWorkerCountAll(roomName: string, count: number): void;
+  function setWorkerCountBuilder(roomName: string, count: number): void;
+  function setWorkerCountUpgrader(roomName: string, count: number): void;
+  function planRoad(originId: RoomObjectId, targetId: RoomObjectId): void;
 }
 
+global.setControllerLevel = (roomName: string, controllerLevel: RoomLevel): void => {
+  if (controllerLevel < 1 || controllerLevel > 8) {
+    throw new Error('Invalid controller level!');
+  }
+
+  Game.rooms[roomName].memory.config.controllerLevel = controllerLevel;
+};
+
+global.setWorkerCountAll = (roomName: string, count: number): void => {
+  Game.rooms[roomName].memory.config.workerCountAll = count;
+};
+
+global.setWorkerCountBuilder = (roomName: string, count: number): void => {
+  Game.rooms[roomName].memory.config.workerCountBuilder = count;
+};
+
+global.setWorkerCountUpgrader = (roomName: string, count: number): void => {
+  Game.rooms[roomName].memory.config.workerCountUpgrader = count;
+};
+
+global.planRoad = (originId: RoomObjectId, targetId: RoomObjectId): void => {
+  const origin = Game.getObjectById(originId);
+  const destination = Game.getObjectById(targetId);
+  if (origin === null || destination === null) {
+    throw new Error('Invalid room object ID!');
+  }
+
+  planRoad(origin.pos, destination.pos);
+};
+
+const createDefaultRoomMemory = (): RoomMemory => ({
+  config: {
+    controllerLevel: 2,
+    workerCountAll: 6,
+    workerCountBuilder: 2,
+    workerCountUpgrader: 2,
+  },
+  upgrading: true,
+  roadList: [],
+});
+
 const initializeMemory = (room: Room): void => {
-  room.memory.stopUpgrade = room.memory.stopUpgrade === undefined ? false : room.memory.stopUpgrade;
-  room.memory.roadList = room.memory.roadList === undefined ? [] : room.memory.roadList;
+  if (isEmpty(room.memory)) {
+    room.memory = createDefaultRoomMemory();
+  }
 };
 
 export const loop = () => {

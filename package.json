@@ -31,7 +31,6 @@
     "prettier": "~3.1",
     "rimraf": "^5.0.5",
     "rollup": "^4.6.1",
-    "rollup-plugin-screeps": "^1.0.1",
     "rollup-plugin-typescript2": "^0.36.0",
     "typescript": "^5.3.2"
   }
