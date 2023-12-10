@@ -1,4 +1,6 @@
-interface StructureWithStorage extends Structure {
+import { first } from 'lodash';
+
+export interface StructureWithStorage extends Structure {
   store: StoreDefinition;
 }
 
@@ -55,3 +57,9 @@ export const findClosestSourceActive = (creep: Creep): Source | null =>
 
 export const findClosestConstruction = (creep: Creep): ConstructionSite | null =>
   creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES);
+
+export const findMaintenance = (creep: Creep): Structure | null => {
+  const maintenance = first(creep.room.memory.maintenanceList);
+
+  return maintenance !== undefined ? Game.getObjectById(maintenance) : null;
+};

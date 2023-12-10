@@ -1,24 +1,29 @@
 import { isEmpty } from 'lodash';
-import { CreepRoleConstant, MAIN_SPAWN_NAME, RoomLevel } from './config/config';
+import { CreepActionConstant, CreepRoleConstant, MAIN_SPAWN_NAME, RoomLevel } from './config/config';
 import { onTick as constructionManagerOnTick, planRoad, RoadStatus } from './construction/manager';
 import { onTick as creepManagerOnTick } from './creep/manager';
 
 type RoomObjectId = Id<_HasId & RoomObject>;
 
+interface RoomConfig {
+  controllerLevel: RoomLevel;
+  workerCountAll: number;
+  workerCountBuilder: number;
+  workerCountUpgrader: number;
+}
+
 declare global {
-  interface RoomConfig {
-    controllerLevel: RoomLevel;
-    workerCountAll: number;
-    workerCountBuilder: number;
-    workerCountUpgrader: number;
-  }
   interface RoomMemory {
     config: RoomConfig;
     upgrading: boolean;
     roadList: RoadStatus[];
+    maintenanceList: Id<Structure>[];
   }
+
   interface CreepMemory {
     role: CreepRoleConstant;
+    action: CreepActionConstant | null;
+    target: Id<Source> | null;
   }
 
   function setControllerLevel(roomName: string, controllerLevel: RoomLevel): void;
@@ -67,6 +72,7 @@ const createDefaultRoomMemory = (): RoomMemory => ({
   },
   upgrading: true,
   roadList: [],
+  maintenanceList: [],
 });
 
 const initializeMemory = (room: Room): void => {

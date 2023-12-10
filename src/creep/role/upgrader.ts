@@ -1,6 +1,7 @@
-import { sayWithdraw, sayUpgrade, sayCannotStoreOrWithdraw, sayCannotUpgrade } from '../../util/communicator';
-import { findClosestStorageMostUsed } from '../../util/structureFinder';
-import { moveToWorkerRallyPoint } from '../mover';
+import { ACTION_UPGRADE, ACTION_WITHDRAW } from '../../config/config';
+import { sayUpgrade, sayCannotUpgrade } from '../../util/communicator';
+import { move, moveToWorkerRallyPoint } from './action/move';
+import { withdraw } from './action/withdraw';
 
 const MINIMUM_DOWNGRADE_TIMER_FRACTION = 0.2;
 const MAXIMUM_DOWNGRADE_TIMER_FRACTION = 0.4;
@@ -15,16 +16,6 @@ const DOWNGRADE_TIMER_BY_LEVEL: { [k: number]: number } = {
   8: 200000,
 };
 
-const logWithdrawResult = (upgrader: Creep, result: ScreepsReturnCode): void => {
-  switch (result) {
-    case OK:
-      sayWithdraw(upgrader, RESOURCE_ENERGY);
-      break;
-    default:
-      throw new Error(`Upgrader ${upgrader.name} failed withdrawing with ${result} error code!`);
-  }
-};
-
 const logUpgradeResult = (upgrader: Creep, result: ScreepsReturnCode): void => {
   switch (result) {
     case OK:
@@ -35,33 +26,26 @@ const logUpgradeResult = (upgrader: Creep, result: ScreepsReturnCode): void => {
   }
 };
 
-const withdraw = (upgrader: Creep): void => {
-  const storage = findClosestStorageMostUsed(upgrader);
-  if (storage === null) {
-    moveToWorkerRallyPoint(upgrader);
-    sayCannotStoreOrWithdraw(upgrader);
-  } else {
-    const result = upgrader.withdraw(storage, RESOURCE_ENERGY);
-    if (result === ERR_NOT_IN_RANGE) {
-      upgrader.moveTo(storage);
-    } else {
-      logWithdrawResult(upgrader, result);
-    }
-  }
-};
-
 const upgrade = (upgrader: Creep): void => {
   const controller = upgrader.room.controller;
-  if (controller === undefined) {
-    moveToWorkerRallyPoint(upgrader);
-    sayCannotUpgrade(upgrader);
-  } else {
+  if (controller !== undefined) {
     const result = upgrader.upgradeController(controller);
     if (result === ERR_NOT_IN_RANGE) {
-      upgrader.moveTo(controller);
+      move(upgrader, controller);
     } else {
       logUpgradeResult(upgrader, result);
     }
+  } else {
+    moveToWorkerRallyPoint(upgrader);
+    sayCannotUpgrade(upgrader);
+  }
+};
+
+const setAction = (upgrader: Creep): void => {
+  if (upgrader.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+    upgrader.memory.action = ACTION_WITHDRAW;
+  } else if (upgrader.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+    upgrader.memory.action = ACTION_UPGRADE;
   }
 };
 
@@ -83,13 +67,16 @@ export const shouldUpgrade = (room: Room): boolean => {
   return false;
 };
 
-export const run = (upgrader: Creep): void => {
-  if (shouldUpgrade(upgrader.room) === false) {
+export const onTick = (upgrader: Creep): void => {
+  if (shouldUpgrade(upgrader.room) === true) {
+    setAction(upgrader);
+    if (upgrader.memory.action === ACTION_WITHDRAW) {
+      withdraw(upgrader);
+    } else {
+      upgrade(upgrader);
+    }
+  } else {
     moveToWorkerRallyPoint(upgrader);
     sayCannotUpgrade(upgrader);
-  } else if (upgrader.store[RESOURCE_ENERGY] === 0) {
-    withdraw(upgrader);
-  } else {
-    upgrade(upgrader);
   }
 };

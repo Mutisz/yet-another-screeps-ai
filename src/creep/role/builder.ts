@@ -1,61 +1,57 @@
-import { sayBuild, sayCannotBuild, sayCannotStoreOrWithdraw, sayWithdraw } from '../../util/communicator';
-import { findClosestConstruction, findClosestStorageMostUsed } from '../../util/structureFinder';
-import { moveToWorkerRallyPoint } from '../mover';
+import { sayBuildOrMaintain, sayCannotBuildOrMaintain } from '../../util/communicator';
+import { findClosestConstruction, findMaintenance } from '../../util/structureFinder';
+import { move, moveToWorkerRallyPoint } from './action/move';
+import { withdraw } from './action/withdraw';
 
-const logWithdrawResult = (builder: Creep, result: ScreepsReturnCode): void => {
+const logBuildOrMaintainResult = (
+  builder: Creep,
+  structure: ConstructionSite | Structure,
+  result: ScreepsReturnCode,
+): void => {
   switch (result) {
     case OK:
-      sayWithdraw(builder, RESOURCE_ENERGY);
+      sayBuildOrMaintain(builder, structure.structureType);
       break;
     default:
-      throw new Error(`Builder ${builder.name} failed withdrawing with ${result} error code!`);
+      throw new Error(`Builder ${builder.name} failed action with ${result} error code!`);
   }
 };
 
-const logBuildResult = (builder: Creep, construction: ConstructionSite, result: ScreepsReturnCode): void => {
-  switch (result) {
-    case OK:
-      sayBuild(builder, construction.structureType);
-      break;
-    default:
-      throw new Error(`Builder ${builder.name} failed building with ${result} error code!`);
-  }
-};
-
-const withdraw = (builder: Creep): void => {
-  const storage = findClosestStorageMostUsed(builder);
-  if (storage === null) {
-    moveToWorkerRallyPoint(builder);
-    sayCannotStoreOrWithdraw(builder);
+const build = (builder: Creep, construction: ConstructionSite): void => {
+  const result = builder.build(construction);
+  if (result === ERR_NOT_IN_RANGE) {
+    move(builder, construction);
   } else {
-    const result = builder.withdraw(storage, RESOURCE_ENERGY);
-    if (result === ERR_NOT_IN_RANGE) {
-      builder.moveTo(storage);
-    } else {
-      logWithdrawResult(builder, result);
-    }
+    logBuildOrMaintainResult(builder, construction, result);
   }
 };
 
-const build = (builder: Creep): void => {
+const maintain = (builder: Creep, maintenance: Structure): void => {
+  const result = builder.repair(maintenance);
+  if (result === ERR_NOT_IN_RANGE) {
+    move(builder, maintenance);
+  } else {
+    logBuildOrMaintainResult(builder, maintenance, result);
+  }
+};
+
+const buildOrMaintain = (builder: Creep): void => {
   const construction = findClosestConstruction(builder);
-  if (construction === null) {
-    moveToWorkerRallyPoint(builder);
-    sayCannotBuild(builder);
+  const maintenance = construction === null ? findMaintenance(builder) : null;
+  if (construction !== null) {
+    build(builder, construction);
+  } else if (maintenance !== null) {
+    maintain(builder, maintenance);
   } else {
-    const result = builder.build(construction);
-    if (result === ERR_NOT_IN_RANGE) {
-      builder.moveTo(construction);
-    } else {
-      logBuildResult(builder, construction, result);
-    }
+    moveToWorkerRallyPoint(builder);
+    sayCannotBuildOrMaintain(builder);
   }
 };
 
-export const run = (builder: Creep): void => {
+export const onTick = (builder: Creep): void => {
   if (builder.store[RESOURCE_ENERGY] === 0) {
     withdraw(builder);
   } else {
-    build(builder);
+    buildOrMaintain(builder);
   }
 };

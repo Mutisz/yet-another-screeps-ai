@@ -1,11 +1,14 @@
-import { curry } from 'lodash';
+import { curry, pull } from 'lodash';
 
-const ROAD_COLOR = '#D3D3D3';
+const COLOR = '#D3D3D3';
+const MAINTENANCE_FREQUENCY = 1000;
+const HITS_FRACTION_MIN = 0.2;
+const HITS_FRACTION_MAX = 0.4;
 
 export interface RoadStatus {
-  built: boolean;
-  constructionIterator: number;
-  roadPositionList: PathStep[];
+  lastMaintenance: number;
+  positionIterator: number;
+  positionList: PathStep[];
 }
 
 export interface RoadEndpoint {
@@ -13,46 +16,75 @@ export interface RoadEndpoint {
   y: number;
 }
 
-const findRoadPath = (origin: RoomPosition, destination: RoomPosition): PathStep[] => {
-  const room = Game.rooms[origin.roomName];
-  return room.findPath(origin, destination, { ignoreCreeps: true });
+const findRoadPath = (origin: RoomPosition, destination: RoomPosition): PathStep[] =>
+  Game.rooms[origin.roomName].findPath(origin, destination, { ignoreCreeps: true });
+
+const drawRoadPath = (room: Room, path: PathStep[]): void =>
+  path.forEach((position) => room.visual.circle(position.x, position.y, { fill: COLOR }));
+
+const completeRoad = (roadStatus: RoadStatus): void => {
+  roadStatus.lastMaintenance = Game.time;
 };
 
-const drawRoadPath = (room: Room, path: PathStep[]): void => {
-  path.forEach((position) => room.visual.circle(position.x, position.y, { fill: ROAD_COLOR }));
+const buildRoad = (room: Room, roadPosition: PathStep): void => {
+  room.createConstructionSite(roadPosition.x, roadPosition.y, STRUCTURE_ROAD);
 };
 
-const createRoadConstruction = (room: Room, roadStatus: RoadStatus): void => {
-  const constructionPosition = roadStatus.roadPositionList[roadStatus.constructionIterator];
-  const constructionComplete =
-    room
-      .lookForAt(LOOK_STRUCTURES, constructionPosition.x, constructionPosition.y)
-      .filter((structure) => structure.structureType === STRUCTURE_ROAD).length > 0;
-  if (constructionComplete === true) {
-    roadStatus.constructionIterator++;
-  } else {
-    room.createConstructionSite(constructionPosition.x, constructionPosition.y, STRUCTURE_ROAD);
+const maintainRoad = (road: Structure, roadStatus: RoadStatus): void => {
+  const hitsFraction = road.hits / road.hitsMax;
+  if (hitsFraction < HITS_FRACTION_MIN) {
+    road.room.memory.maintenanceList.push(road.id);
+  } else if (hitsFraction > HITS_FRACTION_MAX) {
+    pull(road.room.memory.maintenanceList, road.id);
+    roadStatus.positionIterator++;
+  }
+
+  if (roadStatus.positionIterator > roadStatus.positionList.length) {
+    completeRoad(roadStatus);
   }
 };
 
-const buildRoad = (room: Room, roadStatus: RoadStatus): void => {
-  if (roadStatus.built === true) {
+const resetPositionIteratorIfMaintenanceRequired = (roadStatus: RoadStatus): void => {
+  const completed = roadStatus.positionIterator > roadStatus.positionList.length;
+  if (completed === true && Game.time - roadStatus.lastMaintenance > MAINTENANCE_FREQUENCY) {
+    roadStatus.positionIterator = 0;
+  }
+};
+
+const buildAndMaintainRoad = (room: Room, roadStatus: RoadStatus): void => {
+  resetPositionIteratorIfMaintenanceRequired(roadStatus);
+  if (roadStatus.positionIterator > roadStatus.positionList.length) {
     return;
+  } else {
+    drawRoadPath(room, roadStatus.positionList);
   }
 
-  createRoadConstruction(room, roadStatus);
-  drawRoadPath(room, roadStatus.roadPositionList);
+  const roadPosition = roadStatus.positionList[roadStatus.positionIterator];
+  const road = room
+    .lookForAt(LOOK_STRUCTURES, roadPosition.x, roadPosition.y)
+    .find((structure) => structure.structureType === STRUCTURE_ROAD);
+  const construction = road
+    ? room
+        .lookForAt(LOOK_CONSTRUCTION_SITES, roadPosition.x, roadPosition.y)
+        .find((construction) => construction.structureType === STRUCTURE_ROAD)
+    : undefined;
+
+  if (road === undefined && construction === undefined) {
+    buildRoad(room, roadPosition);
+  } else if (road !== undefined) {
+    maintainRoad(road, roadStatus);
+  }
 };
 
 export const planRoad = (origin: RoomPosition, destination: RoomPosition): void => {
   const room = Game.rooms[origin.roomName];
   room.memory.roadList.push({
-    built: false,
-    constructionIterator: 0,
-    roadPositionList: findRoadPath(origin, destination),
+    lastMaintenance: 0,
+    positionIterator: 0,
+    positionList: findRoadPath(origin, destination),
   });
 };
 
 export const onTick = (room: Room): void => {
-  room.memory.roadList.forEach(curry(buildRoad)(room));
+  room.memory.roadList.forEach(curry(buildAndMaintainRoad)(room));
 };

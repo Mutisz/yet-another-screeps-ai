@@ -1,16 +1,7 @@
-import { sayCannotMine, sayCannotStoreOrWithdraw, sayMine, sayStore } from '../../util/communicator';
-import { findClosestSourceActive, findClosestStorageLeastUsed } from '../../util/structureFinder';
-import { moveToWorkerRallyPoint } from '../mover';
-
-const logHarvestResult = (harvester: Creep, result: ScreepsReturnCode): void => {
-  switch (result) {
-    case OK:
-      sayMine(harvester, RESOURCE_ENERGY);
-      break;
-    default:
-      throw new Error(`Harvester ${harvester.name} failed harvesting with ${result} error code!`);
-  }
-};
+import { sayCannotStoreOrWithdraw, sayStore } from '../../util/communicator';
+import { findClosestStorageLeastUsed } from '../../util/structureFinder';
+import { harvest } from './action/harvest';
+import { move, moveToWorkerRallyPoint } from './action/move';
 
 const logStoreResult = (harvester: Creep, result: ScreepsReturnCode): void => {
   switch (result) {
@@ -22,38 +13,23 @@ const logStoreResult = (harvester: Creep, result: ScreepsReturnCode): void => {
   }
 };
 
-const harvest = (harvester: Creep): void => {
-  const source = findClosestSourceActive(harvester);
-  if (source === null) {
-    moveToWorkerRallyPoint(harvester);
-    sayCannotMine(harvester);
-  } else {
-    const result = harvester.harvest(source);
-    if (result === ERR_NOT_IN_RANGE) {
-      harvester.moveTo(source);
-    } else {
-      logHarvestResult(harvester, result);
-    }
-  }
-};
-
 const store = (harvester: Creep): void => {
   const storage = findClosestStorageLeastUsed(harvester);
-  if (storage === null) {
-    moveToWorkerRallyPoint(harvester);
-    sayCannotStoreOrWithdraw(harvester);
-  } else {
+  if (storage !== null) {
     const result = harvester.transfer(storage, RESOURCE_ENERGY);
     if (result === ERR_NOT_IN_RANGE) {
-      harvester.moveTo(storage);
+      move(harvester, storage);
     } else {
       logStoreResult(harvester, result);
     }
+  } else {
+    moveToWorkerRallyPoint(harvester);
+    sayCannotStoreOrWithdraw(harvester);
   }
 };
 
-export const run = (harvester: Creep): void => {
-  if (harvester.store.getFreeCapacity() > 0) {
+export const onTick = (harvester: Creep): void => {
+  if (harvester.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
     harvest(harvester);
   } else {
     store(harvester);

@@ -1,3 +1,4 @@
+import { fill, floor, reduce } from 'lodash';
 import {
   WORKER_BODY,
   ROLE_BUILDER,
@@ -8,9 +9,9 @@ import {
 } from '../config/config';
 import { sayChangeRole } from '../util/communicator';
 import { generateCreepName } from '../util/nameGenerator';
-import { run as runBuilder } from './role/builder';
-import { run as runHarvester } from './role/harvester';
-import { shouldUpgrade, run as runUpgrader } from './role/upgrader';
+import { onTick as runBuilder } from './role/builder';
+import { onTick as runHarvester } from './role/harvester';
+import { shouldUpgrade, onTick as runUpgrader } from './role/upgrader';
 
 const isWorker = (creep: Creep): boolean => WORKER_ROLE_LIST.includes(creep.memory.role);
 
@@ -46,8 +47,11 @@ const setUpgraderRole = (worker: Creep): void => {
 
 const spawnWorker = (spawn: StructureSpawn): void => {
   if (spawn.spawning === null && findWorkerList(spawn.room).length < spawn.room.memory.config.workerCountAll) {
-    const result = spawn.spawnCreep(WORKER_BODY, generateCreepName('worker'), {
-      memory: { role: ROLE_HARVESTER },
+    const baseWorkerCost = reduce(WORKER_BODY, (acc, bodyPart) => acc + BODYPART_COST[bodyPart], 0);
+    const workerLevel = floor(spawn.room.energyCapacityAvailable / baseWorkerCost);
+    const workerBody = WORKER_BODY.concat(...fill(Array(workerLevel - 1), WORKER_BODY));
+    const result = spawn.spawnCreep(workerBody, generateCreepName('worker'), {
+      memory: { role: ROLE_HARVESTER, action: null, target: null },
     });
 
     logSpawnResult(result);
