@@ -1,5 +1,6 @@
-import { sayBuildOrMaintain, sayCannotBuildOrMaintain } from '../../util/communicator';
-import { findClosestConstruction, findMaintenance } from '../../util/structureFinder';
+import { ACTION_BUILD, ACTION_WITHDRAW } from '../../const';
+import { sayBuildOrMaintain, sayCannotBuildOrMaintain, sayCannotUpgrade } from '../../util/communicator';
+import { findClosestConstruction, findClosestMaintenance } from '../../util/structureFinder';
 import { move, moveToWorkerRallyPoint } from './action/move';
 import { withdraw } from './action/withdraw';
 
@@ -37,7 +38,7 @@ const maintain = (builder: Creep, maintenance: Structure): void => {
 
 const buildOrMaintain = (builder: Creep): void => {
   const construction = findClosestConstruction(builder);
-  const maintenance = construction === null ? findMaintenance(builder) : null;
+  const maintenance = construction === null ? findClosestMaintenance(builder) : null;
   if (construction !== null) {
     build(builder, construction);
   } else if (maintenance !== null) {
@@ -48,10 +49,39 @@ const buildOrMaintain = (builder: Creep): void => {
   }
 };
 
-export const onTick = (builder: Creep): void => {
-  if (builder.store[RESOURCE_ENERGY] === 0) {
+const setAction = (upgrader: Creep): void => {
+  if (upgrader.memory.action === ACTION_BUILD && upgrader.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+    upgrader.memory.action = ACTION_WITHDRAW;
+  } else if (upgrader.memory.action === ACTION_WITHDRAW && upgrader.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+    upgrader.memory.action = ACTION_BUILD;
+  }
+};
+
+const executeAction = (builder: Creep): void => {
+  if (builder.memory.action === ACTION_WITHDRAW) {
     withdraw(builder);
-  } else {
+  } else if (builder.memory.action === ACTION_BUILD) {
     buildOrMaintain(builder);
+  } else {
+    throw new Error(`Action ${builder.memory.action} is unhandled for builders!`);
+  }
+};
+
+export const shouldBuildOrMaintain = (room: Room): boolean => {
+  let shouldBuild = room.find(FIND_MY_CONSTRUCTION_SITES).length > 0;
+  if (shouldBuild === false) {
+    shouldBuild = room.memory.maintenanceList.length > 0;
+  }
+
+  return shouldBuild;
+};
+
+export const onTick = (builder: Creep): void => {
+  if (shouldBuildOrMaintain(builder.room) === true) {
+    setAction(builder);
+    executeAction(builder);
+  } else {
+    moveToWorkerRallyPoint(builder);
+    sayCannotUpgrade(builder);
   }
 };

@@ -1,4 +1,4 @@
-import { ACTION_UPGRADE, ACTION_WITHDRAW } from '../../config/config';
+import { ACTION_UPGRADE, ACTION_WITHDRAW } from '../../const';
 import { sayUpgrade, sayCannotUpgrade } from '../../util/communicator';
 import { move, moveToWorkerRallyPoint } from './action/move';
 import { withdraw } from './action/withdraw';
@@ -42,10 +42,20 @@ const upgrade = (upgrader: Creep): void => {
 };
 
 const setAction = (upgrader: Creep): void => {
-  if (upgrader.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+  if ((upgrader.memory.action === ACTION_UPGRADE && upgrader.store.getUsedCapacity(RESOURCE_ENERGY)) === 0) {
     upgrader.memory.action = ACTION_WITHDRAW;
-  } else if (upgrader.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+  } else if (upgrader.memory.action === ACTION_WITHDRAW && upgrader.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
     upgrader.memory.action = ACTION_UPGRADE;
+  }
+};
+
+const executeAction = (upgrader: Creep): void => {
+  if (upgrader.memory.action === ACTION_WITHDRAW) {
+    withdraw(upgrader);
+  } else if (upgrader.memory.action === ACTION_UPGRADE) {
+    upgrade(upgrader);
+  } else {
+    throw new Error(`Action ${upgrader.memory.action} is unhandled for upgraders!`);
   }
 };
 
@@ -70,11 +80,7 @@ export const shouldUpgrade = (room: Room): boolean => {
 export const onTick = (upgrader: Creep): void => {
   if (shouldUpgrade(upgrader.room) === true) {
     setAction(upgrader);
-    if (upgrader.memory.action === ACTION_WITHDRAW) {
-      withdraw(upgrader);
-    } else {
-      upgrade(upgrader);
-    }
+    executeAction(upgrader);
   } else {
     moveToWorkerRallyPoint(upgrader);
     sayCannotUpgrade(upgrader);

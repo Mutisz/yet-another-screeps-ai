@@ -1,5 +1,3 @@
-import { first } from 'lodash';
-
 export interface StructureWithStorage extends Structure {
   store: StoreDefinition;
 }
@@ -24,16 +22,16 @@ const listMainStorageByUsedCapacityDescending = (creep: Creep): StructureWithSto
 };
 
 export const findClosestRallyPoint = (creep: Creep, name: string): RoomPosition => {
-  let rallyPoint = creep.pos.findClosestByPath(FIND_FLAGS, { filter: { name } })?.pos;
+  let rallyPoint: Flag | Structure | null = creep.pos.findClosestByPath(FIND_FLAGS, { filter: { name } });
   if (rallyPoint === null) {
-    rallyPoint = creep.pos.findClosestByPath(FIND_MY_SPAWNS)?.pos;
+    rallyPoint = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
   }
 
-  if (!rallyPoint) {
+  if (rallyPoint === null) {
     throw new Error(`Creep ${creep.id} doesn\t have a rally point!`);
   }
 
-  return rallyPoint;
+  return rallyPoint.pos;
 };
 
 export const findClosestStorageLeastUsed = (creep: Creep): StructureWithStorage | null => {
@@ -58,8 +56,14 @@ export const findClosestSourceActive = (creep: Creep): Source | null =>
 export const findClosestConstruction = (creep: Creep): ConstructionSite | null =>
   creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES);
 
-export const findMaintenance = (creep: Creep): Structure | null => {
-  const maintenance = first(creep.room.memory.maintenanceList);
+export const findClosestMaintenance = (creep: Creep): Structure | null => {
+  const maintenanceList = creep.room.memory.maintenanceList
+    .map((id) => Game.getObjectById(id)?.pos)
+    .filter((position) => position !== undefined) as RoomPosition[];
+  const maintenance = creep.pos
+    .findClosestByPath(maintenanceList, { ignoreCreeps: true })
+    ?.look()
+    .find((object) => object.structure !== undefined)?.structure;
 
-  return maintenance !== undefined ? Game.getObjectById(maintenance) : null;
+  return maintenance ?? null;
 };

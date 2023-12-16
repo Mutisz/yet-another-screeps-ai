@@ -16,8 +16,8 @@ export interface RoadEndpoint {
   y: number;
 }
 
-const findRoadPath = (origin: RoomPosition, destination: RoomPosition): PathStep[] =>
-  Game.rooms[origin.roomName].findPath(origin, destination, { ignoreCreeps: true });
+const findRoadPath = (origin: RoomPosition, destination: RoomPosition, range: number): PathStep[] =>
+  Game.rooms[origin.roomName].findPath(origin, destination, { ignoreCreeps: true, swampCost: 1, range });
 
 const drawRoadPath = (room: Room, path: PathStep[]): void =>
   path.forEach((position) => room.visual.circle(position.x, position.y, { fill: COLOR }));
@@ -39,7 +39,7 @@ const maintainRoad = (road: Structure, roadStatus: RoadStatus): void => {
     roadStatus.positionIterator++;
   }
 
-  if (roadStatus.positionIterator > roadStatus.positionList.length) {
+  if (roadStatus.positionIterator >= roadStatus.positionList.length) {
     completeRoad(roadStatus);
   }
 };
@@ -53,35 +53,36 @@ const resetPositionIteratorIfMaintenanceRequired = (roadStatus: RoadStatus): voi
 
 const buildAndMaintainRoad = (room: Room, roadStatus: RoadStatus): void => {
   resetPositionIteratorIfMaintenanceRequired(roadStatus);
-  if (roadStatus.positionIterator > roadStatus.positionList.length) {
+  if (roadStatus.positionIterator >= roadStatus.positionList.length) {
     return;
   } else {
     drawRoadPath(room, roadStatus.positionList);
   }
 
   const roadPosition = roadStatus.positionList[roadStatus.positionIterator];
-  const road = room
-    .lookForAt(LOOK_STRUCTURES, roadPosition.x, roadPosition.y)
-    .find((structure) => structure.structureType === STRUCTURE_ROAD);
+  const road =
+    room
+      .lookForAt(LOOK_STRUCTURES, roadPosition.x, roadPosition.y)
+      .find((structure) => structure.structureType === STRUCTURE_ROAD) ?? null;
   const construction = road
     ? room
         .lookForAt(LOOK_CONSTRUCTION_SITES, roadPosition.x, roadPosition.y)
         .find((construction) => construction.structureType === STRUCTURE_ROAD)
-    : undefined;
+    : null;
 
-  if (road === undefined && construction === undefined) {
+  if (road === null && construction === null) {
     buildRoad(room, roadPosition);
-  } else if (road !== undefined) {
+  } else if (road !== null) {
     maintainRoad(road, roadStatus);
   }
 };
 
-export const planRoad = (origin: RoomPosition, destination: RoomPosition): void => {
+export const planRoad = (origin: RoomPosition, destination: RoomPosition, range: number = 1): void => {
   const room = Game.rooms[origin.roomName];
   room.memory.roadList.push({
     lastMaintenance: 0,
     positionIterator: 0,
-    positionList: findRoadPath(origin, destination),
+    positionList: findRoadPath(origin, destination, range),
   });
 };
 

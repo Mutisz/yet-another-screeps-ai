@@ -1,4 +1,4 @@
-import { ROLE_BUILDER, ROLE_HARVESTER, ROLE_UPGRADER } from '../config/config';
+import { ROLE_BUILDER, ROLE_HARVESTER, ROLE_UPGRADER } from '../const';
 
 const ICON_NEGATE = '❌';
 

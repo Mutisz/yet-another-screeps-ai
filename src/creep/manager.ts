@@ -6,10 +6,11 @@ import {
   ROLE_UPGRADER,
   WORKER_ROLE_LIST,
   CreepRoleConstant,
-} from '../config/config';
+  ACTION_WITHDRAW,
+} from '../const';
 import { sayChangeRole } from '../util/communicator';
 import { generateCreepName } from '../util/nameGenerator';
-import { onTick as runBuilder } from './role/builder';
+import { onTick as runBuilder, shouldBuildOrMaintain } from './role/builder';
 import { onTick as runHarvester } from './role/harvester';
 import { shouldUpgrade, onTick as runUpgrader } from './role/upgrader';
 
@@ -33,16 +34,19 @@ const logSpawnResult = (result: ScreepsReturnCode): void => {
 const setBuilderRole = (worker: Creep): void => {
   sayChangeRole(worker, ROLE_BUILDER);
   worker.memory.role = ROLE_BUILDER;
+  worker.memory.action = ACTION_WITHDRAW;
 };
 
 const setHarvesterRole = (worker: Creep): void => {
   sayChangeRole(worker, ROLE_HARVESTER);
   worker.memory.role = ROLE_HARVESTER;
+  worker.memory.action = null;
 };
 
 const setUpgraderRole = (worker: Creep): void => {
   sayChangeRole(worker, ROLE_UPGRADER);
   worker.memory.role = ROLE_UPGRADER;
+  worker.memory.action = ACTION_WITHDRAW;
 };
 
 const spawnWorker = (spawn: StructureSpawn): void => {
@@ -59,7 +63,7 @@ const spawnWorker = (spawn: StructureSpawn): void => {
 };
 
 const assignBuilders = (room: Room): void => {
-  const shouldAssign = room.find(FIND_MY_CONSTRUCTION_SITES).length > 0;
+  const shouldAssign = shouldBuildOrMaintain(room);
   const harvesterList = findWorkerByRole(room, ROLE_HARVESTER);
   const builderList = findWorkerByRole(room, ROLE_BUILDER);
   if (shouldAssign && builderList.length < room.memory.config.workerCountBuilder) {

@@ -1,4 +1,4 @@
-import { WORKER_RALLY_POINT_NAME } from '../../../config/config';
+import { WORKER_RALLY_POINT_NAME } from '../../../const';
 import { sayCannotMove } from '../../../util/communicator';
 import { findClosestRallyPoint } from '../../../util/structureFinder';
 
