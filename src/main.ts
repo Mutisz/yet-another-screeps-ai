@@ -1,6 +1,8 @@
 import { isEmpty } from 'lodash';
 import { CreepActionConstant, CreepRoleConstant, MAIN_SPAWN_NAME, RoomLevel } from './const';
-import { onTick as constructionManagerOnTick, planRoad, RoadStatus } from './construction/manager';
+import { onTick as constructionManagerOnTick, StructurePosition, StructureStatus } from './construction/manager';
+import { plan as planRoad } from './construction/structure/road';
+import { plan as planWall } from './construction/structure/wall';
 import { onTick as creepManagerOnTick } from './creep/manager';
 import { pruneCreepMemory } from './util/garbageCollector';
 
@@ -17,7 +19,7 @@ declare global {
   interface RoomMemory {
     config: RoomConfig;
     upgrading: boolean;
-    roadList: RoadStatus[];
+    structureList: StructureStatus[];
     maintenanceList: Id<Structure>[];
   }
 
@@ -32,6 +34,7 @@ declare global {
   function setWorkerCountBuilder(roomName: string, count: number): void;
   function setWorkerCountUpgrader(roomName: string, count: number): void;
   function planRoad(originId: RoomObjectId, targetId: RoomObjectId): void;
+  function planWall(roomName: string, positionList: StructurePosition[]): void;
 }
 
 global.setControllerLevel = (roomName: string, controllerLevel: RoomLevel): void => {
@@ -79,6 +82,17 @@ global.planRoad = (originId: RoomObjectId, targetId: RoomObjectId): void => {
   planRoad(origin.pos, destination.pos);
 };
 
+global.planWall = (roomName: string, positionList: StructurePosition[]): void => {
+  if (!(roomName in Game.rooms)) {
+    throw new Error('Invalid room name!');
+  }
+  if (positionList.length <= 0) {
+    throw new Error('Invalid wall position list!');
+  }
+
+  planWall(positionList.map((position) => new RoomPosition(position.x, position.y, roomName)));
+};
+
 const createDefaultRoomMemory = (): RoomMemory => ({
   config: {
     controllerLevel: 3,
@@ -87,7 +101,7 @@ const createDefaultRoomMemory = (): RoomMemory => ({
     workerCountUpgrader: 2,
   },
   upgrading: true,
-  roadList: [],
+  structureList: [],
   maintenanceList: [],
 });
 

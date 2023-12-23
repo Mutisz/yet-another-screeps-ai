@@ -1,91 +1,116 @@
 import { curry, pull } from 'lodash';
 
-const COLOR = '#D3D3D3';
-const MAINTENANCE_FREQUENCY = 1000;
-const HITS_FRACTION_MIN = 0.2;
-const HITS_FRACTION_MAX = 0.4;
+type StructureType = STRUCTURE_ROAD | STRUCTURE_WALL;
 
-export interface RoadStatus {
+export interface StructureStatus {
+  type: StructureType;
   lastMaintenance: number;
   positionIterator: number;
-  positionList: PathStep[];
+  positionList: StructurePosition[];
 }
 
-export interface RoadEndpoint {
+export interface StructurePosition {
   x: number;
   y: number;
 }
 
-const findRoadPath = (origin: RoomPosition, destination: RoomPosition, range: number): PathStep[] =>
-  Game.rooms[origin.roomName].findPath(origin, destination, { ignoreCreeps: true, swampCost: 1, range });
-
-const drawRoadPath = (room: Room, path: PathStep[]): void =>
-  path.forEach((position) => room.visual.circle(position.x, position.y, { fill: COLOR }));
-
-const completeRoad = (roadStatus: RoadStatus): void => {
-  roadStatus.lastMaintenance = Game.time;
+const COLOR: { [k: string]: string } = {
+  STRUCTURE_ROAD: '#D3D3D3',
+  STRUCTURE_WALL: '#FFA3A3',
+};
+const HITS_FRACTION_MIN: { [k: string]: number } = {
+  STRUCTURE_ROAD: 0.2,
+  STRUCTURE_WALL: 0.4,
+};
+const HITS_FRACTION_MAX: { [k: string]: number } = {
+  STRUCTURE_ROAD: 0.4,
+  STRUCTURE_WALL: 0.6,
+};
+const MAINTENANCE_FREQUENCY: { [k: string]: number } = {
+  STRUCTURE_ROAD: 1000,
+  STRUCTURE_WALL: 2000,
 };
 
-const buildRoad = (room: Room, roadPosition: PathStep): void => {
-  room.createConstructionSite(roadPosition.x, roadPosition.y, STRUCTURE_ROAD);
-};
+const findStructure = (room: Room, status: StructureStatus) => {
+  const position = status.positionList[status.positionIterator];
 
-const maintainRoad = (road: Structure, roadStatus: RoadStatus): void => {
-  const hitsFraction = road.hits / road.hitsMax;
-  if (hitsFraction < HITS_FRACTION_MIN) {
-    road.room.memory.maintenanceList.push(road.id);
-  } else if (hitsFraction > HITS_FRACTION_MAX) {
-    pull(road.room.memory.maintenanceList, road.id);
-    roadStatus.positionIterator++;
-  }
-
-  if (roadStatus.positionIterator >= roadStatus.positionList.length) {
-    completeRoad(roadStatus);
-  }
-};
-
-const resetPositionIteratorIfMaintenanceRequired = (roadStatus: RoadStatus): void => {
-  const completed = roadStatus.positionIterator > roadStatus.positionList.length;
-  if (completed === true && Game.time - roadStatus.lastMaintenance > MAINTENANCE_FREQUENCY) {
-    roadStatus.positionIterator = 0;
-  }
-};
-
-const buildAndMaintainRoad = (room: Room, roadStatus: RoadStatus): void => {
-  resetPositionIteratorIfMaintenanceRequired(roadStatus);
-  if (roadStatus.positionIterator >= roadStatus.positionList.length) {
-    return;
-  } else {
-    drawRoadPath(room, roadStatus.positionList);
-  }
-
-  const roadPosition = roadStatus.positionList[roadStatus.positionIterator];
-  const road =
+  return (
     room
-      .lookForAt(LOOK_STRUCTURES, roadPosition.x, roadPosition.y)
-      .find((structure) => structure.structureType === STRUCTURE_ROAD) ?? null;
-  const construction = road
-    ? room
-        .lookForAt(LOOK_CONSTRUCTION_SITES, roadPosition.x, roadPosition.y)
-        .find((construction) => construction.structureType === STRUCTURE_ROAD)
-    : null;
+      .lookForAt(LOOK_STRUCTURES, position.x, position.y)
+      .find((structure) => structure.structureType === status.type) ?? null
+  );
+};
 
-  if (road === null && construction === null) {
-    buildRoad(room, roadPosition);
-  } else if (road !== null) {
-    maintainRoad(road, roadStatus);
+const findConstruction = (room: Room, status: StructureStatus) => {
+  const position = status.positionList[status.positionIterator];
+
+  return (
+    room
+      .lookForAt(LOOK_CONSTRUCTION_SITES, position.x, position.y)
+      .find((construction) => construction.structureType === status.type) ?? null
+  );
+};
+
+const drawPathBuild = (room: Room, status: StructureStatus): void =>
+  status.positionList.forEach((position) => room.visual.circle(position.x, position.y, { fill: COLOR[status.type] }));
+
+const drawPathMaintain = (room: Room, status: StructureStatus): void =>
+  status.positionList.forEach((position) =>
+    room.visual.rect(position.x - 0.2, position.y - 0.2, 0.3, 0.3, { fill: COLOR[status.type] }),
+  );
+
+const drawPath = (room: Room, status: StructureStatus): void => {
+  if (status.lastMaintenance === 0) {
+    drawPathBuild(room, status);
+  } else {
+    drawPathMaintain(room, status);
   }
 };
 
-export const planRoad = (origin: RoomPosition, destination: RoomPosition, range: number = 1): void => {
-  const room = Game.rooms[origin.roomName];
-  room.memory.roadList.push({
-    lastMaintenance: 0,
-    positionIterator: 0,
-    positionList: findRoadPath(origin, destination, range),
-  });
+const isCompleted = (status: StructureStatus) => status.positionIterator >= status.positionList.length;
+
+const resetPositionIteratorIfMaintenanceRequired = (status: StructureStatus): void => {
+  if (isCompleted(status) && Game.time - status.lastMaintenance > MAINTENANCE_FREQUENCY[status.type]) {
+    status.positionIterator = 0;
+  }
+};
+
+const build = (room: Room, status: StructureStatus): void => {
+  const position = status.positionList[status.positionIterator];
+  room.createConstructionSite(position.x, position.y, status.type);
+};
+
+const maintain = (structure: Structure, status: StructureStatus): void => {
+  const hitsFraction = structure.hits / structure.hitsMax;
+  if (hitsFraction < HITS_FRACTION_MIN[status.type]) {
+    structure.room.memory.maintenanceList.push(structure.id);
+  } else if (hitsFraction > HITS_FRACTION_MAX[status.type]) {
+    pull(structure.room.memory.maintenanceList, structure.id);
+    status.positionIterator++;
+  }
+
+  if (isCompleted(status)) {
+    status.lastMaintenance = Game.time;
+  }
+};
+
+const buildOrMaintain = (room: Room, status: StructureStatus): void => {
+  resetPositionIteratorIfMaintenanceRequired(status);
+  if (isCompleted(status)) {
+    return;
+  }
+
+  const structure = findStructure(room, status);
+  const construction = structure === null ? findConstruction(room, status) : null;
+
+  drawPath(room, status);
+  if (structure === null && construction === null) {
+    build(room, status);
+  } else if (structure !== null) {
+    maintain(structure, status);
+  }
 };
 
 export const onTick = (room: Room): void => {
-  room.memory.roadList.forEach(curry(buildAndMaintainRoad)(room));
+  room.memory.structureList.forEach(curry(buildOrMaintain)(room));
 };
