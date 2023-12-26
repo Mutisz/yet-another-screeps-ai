@@ -21,17 +21,18 @@ const listMainStorageByUsedCapacityDescending = (creep: Creep): StructureWithSto
   return listMainStorage(creep).sort(compareStorage).reverse();
 };
 
-export const findClosestRallyPoint = (creep: Creep, name: string): RoomPosition => {
-  let rallyPoint: Flag | Structure | null = creep.pos.findClosestByPath(FIND_FLAGS, { filter: { name } });
+export const findClosestRallyPoint = (creep: Creep, name: string): Id<_HasId> | string => {
+  let rallyPoint: Id<_HasId> | string | null =
+    creep.pos.findClosestByPath(FIND_FLAGS, { filter: { name } })?.name ?? null;
   if (rallyPoint === null) {
-    rallyPoint = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+    rallyPoint = creep.pos.findClosestByPath(FIND_MY_SPAWNS)?.id ?? null;
   }
 
   if (rallyPoint === null) {
     throw new Error(`Creep ${creep.id} doesn\t have a rally point!`);
   }
 
-  return rallyPoint.pos;
+  return rallyPoint;
 };
 
 export const findClosestStorageLeastUsed = (creep: Creep): StructureWithStorage | null => {

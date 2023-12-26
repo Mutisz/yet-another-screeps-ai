@@ -1,37 +1,36 @@
-import { sayCannotStoreOrWithdraw, sayStore } from '../../util/communicator';
-import { findClosestStorageLeastUsed } from '../../util/structureFinder';
-import { harvest } from './action/harvest';
-import { move, moveToWorkerRallyPoint } from './action/move';
+import { findClosestSourceActive, findClosestStorageLeastUsed } from '../../util/structureFinder';
+import { ACTION_DEPOSIT, ACTION_HARVEST, ACTION_RALLY } from '../action/_const';
 
-const logStoreResult = (harvester: Creep, result: ScreepsReturnCode): void => {
-  switch (result) {
-    case OK:
-      sayStore(harvester, RESOURCE_ENERGY);
-      break;
-    default:
-      throw new Error(`Harvester ${harvester.name} failed storing with ${result} error code!`);
+const canTransitionToHarvest = (harvester: Creep): boolean =>
+  harvester.memory.action.type === ACTION_RALLY ||
+  (harvester.memory.action.type === ACTION_DEPOSIT && harvester.isEmpty() === true);
+
+const canTransitionToDeposit = (harvester: Creep): boolean =>
+  harvester.memory.action.type === ACTION_RALLY ||
+  (harvester.memory.action.type === ACTION_HARVEST && harvester.isFull() === true);
+
+const setActionHarvest = (harvester: Creep): void => {
+  const source = findClosestSourceActive(harvester);
+  if (source !== null) {
+    harvester.setAction(ACTION_HARVEST, source.id);
+  } else {
+    harvester.setActionRally();
   }
 };
 
-const store = (harvester: Creep): void => {
+const setActionDeposit = (harvester: Creep): void => {
   const storage = findClosestStorageLeastUsed(harvester);
   if (storage !== null) {
-    const result = harvester.transfer(storage, RESOURCE_ENERGY);
-    if (result === ERR_NOT_IN_RANGE) {
-      move(harvester, storage);
-    } else {
-      logStoreResult(harvester, result);
-    }
+    harvester.setAction(ACTION_DEPOSIT, storage.id);
   } else {
-    moveToWorkerRallyPoint(harvester);
-    sayCannotStoreOrWithdraw(harvester);
+    harvester.setActionRally();
   }
 };
 
-export const onTick = (harvester: Creep): void => {
-  if (harvester.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-    harvest(harvester);
-  } else {
-    store(harvester);
+export const setActionHarvester = (harvester: Creep): void => {
+  if (canTransitionToHarvest(harvester) === true) {
+    setActionHarvest(harvester);
+  } else if (canTransitionToDeposit(harvester) === true) {
+    setActionDeposit(harvester);
   }
 };

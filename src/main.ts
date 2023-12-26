@@ -1,10 +1,16 @@
 import { isEmpty } from 'lodash';
-import { CreepActionConstant, CreepRoleConstant, MAIN_SPAWN_NAME, RoomLevel } from './const';
+import { RoomLevel } from './const';
 import { onTick as constructionManagerOnTick, StructurePosition, StructureStatus } from './construction/manager';
+import { loop as loopRoom } from './room/manager';
+
 import { plan as planRoad } from './construction/structure/road';
 import { plan as planWall } from './construction/structure/wall';
 import { onTick as creepManagerOnTick } from './creep/manager';
 import { pruneCreepMemory } from './util/garbageCollector';
+import { CreepRoleConstant } from './creep/role/_const';
+import { ACTION_RALLY, CreepActionConstant } from './creep/action/_const';
+import { findClosestRallyPoint } from './util/structureFinder';
+import { WORKER_RALLY_POINT_NAME } from './creep/action/rally';
 
 type RoomObjectId = Id<_HasId & RoomObject>;
 
@@ -15,6 +21,11 @@ interface RoomConfig {
   workerCountUpgrader: number;
 }
 
+interface CreepAction {
+  type: CreepActionConstant;
+  target: Id<_HasId> | string;
+}
+
 declare global {
   interface RoomMemory {
     config: RoomConfig;
@@ -23,10 +34,16 @@ declare global {
     maintenanceList: Id<Structure>[];
   }
 
+  interface Creep {
+    isEmpty(resource?: ResourceConstant): boolean;
+    isFull(resource?: ResourceConstant): boolean;
+    setAction(type: CreepActionConstant, target: Id<_HasId>): void;
+    setActionRally(): void;
+  }
+
   interface CreepMemory {
     role: CreepRoleConstant;
-    action: CreepActionConstant | null;
-    target: Id<Source> | null;
+    action: CreepAction;
   }
 
   function setControllerLevel(roomName: string, controllerLevel: RoomLevel): void;
@@ -36,6 +53,23 @@ declare global {
   function planRoad(originId: RoomObjectId, targetId: RoomObjectId): void;
   function planWall(roomName: string, positionList: StructurePosition[]): void;
 }
+
+Creep.prototype.isEmpty = function (this: Creep, resource: ResourceConstant = RESOURCE_ENERGY): boolean {
+  return this.store.getUsedCapacity(resource) === 0;
+};
+
+Creep.prototype.isFull = function (this: Creep, resource: ResourceConstant = RESOURCE_ENERGY): boolean {
+  return this.store.getFreeCapacity(resource) === 0;
+};
+
+Creep.prototype.setAction = function (this: Creep, type: CreepActionConstant, target: Id<_HasId> | string): void {
+  this.memory.action = { type, target };
+};
+
+Creep.prototype.setActionRally = function (this: Creep): void {
+  const target = findClosestRallyPoint(this, WORKER_RALLY_POINT_NAME);
+  this.memory.action = { type: ACTION_RALLY, target };
+};
 
 global.setControllerLevel = (roomName: string, controllerLevel: RoomLevel): void => {
   if (controllerLevel < 1 || controllerLevel > 8) {
@@ -112,9 +146,13 @@ const initializeMemory = (room: Room): void => {
 };
 
 export const loop = () => {
-  const spawn = Game.spawns[MAIN_SPAWN_NAME];
-  initializeMemory(spawn.room);
-  constructionManagerOnTick(spawn.room);
-  creepManagerOnTick(spawn);
+  for (const roomName in Game.rooms) {
+    const room = Game.rooms[roomName];
+    initializeMemory(room);
+    loopRoom(room);
+    constructionManagerOnTick(room);
+    creepManagerOnTick(room);
+  }
+
   pruneCreepMemory();
 };

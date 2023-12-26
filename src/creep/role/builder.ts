@@ -1,87 +1,42 @@
-import { ACTION_BUILD, ACTION_WITHDRAW } from '../../const';
-import { sayBuildOrMaintain, sayCannotBuildOrMaintain, sayCannotUpgrade } from '../../util/communicator';
 import { findClosestConstruction, findClosestMaintenance } from '../../util/structureFinder';
-import { move, moveToWorkerRallyPoint } from './action/move';
-import { withdraw } from './action/withdraw';
+import { ACTION_BUILD, ACTION_HARVEST, ACTION_MAINTAIN, ACTION_RALLY, ACTION_WITHDRAW } from '../action/_const';
+import { setActionGatherer } from './common/gatherer';
 
-const logBuildOrMaintainResult = (
-  builder: Creep,
-  structure: ConstructionSite | Structure,
-  result: ScreepsReturnCode,
-): void => {
-  switch (result) {
-    case OK:
-      sayBuildOrMaintain(builder, structure.structureType);
-      break;
-    default:
-      throw new Error(`Builder ${builder.name} failed action with ${result} error code!`);
-  }
-};
+const canTransitionToGather = (builder: Creep): boolean =>
+  builder.memory.action.type === ACTION_RALLY ||
+  ([ACTION_BUILD, ACTION_MAINTAIN].includes(builder.memory.action.type) === true && builder.isEmpty() === true);
 
-const build = (builder: Creep, construction: ConstructionSite): void => {
-  const result = builder.build(construction);
-  if (result === ERR_NOT_IN_RANGE) {
-    move(builder, construction);
-  } else {
-    logBuildOrMaintainResult(builder, construction, result);
-  }
-};
+const canTransitionToWork = (builder: Creep): boolean =>
+  builder.memory.action.type === ACTION_RALLY ||
+  ([ACTION_HARVEST, ACTION_WITHDRAW].includes(builder.memory.action.type) === true && builder.isFull() === true);
 
-const maintain = (builder: Creep, maintenance: Structure): void => {
-  const result = builder.repair(maintenance);
-  if (result === ERR_NOT_IN_RANGE) {
-    move(builder, maintenance);
-  } else {
-    logBuildOrMaintainResult(builder, maintenance, result);
-  }
-};
-
-const buildOrMaintain = (builder: Creep): void => {
+const setActionBuildOrMaintain = (builder: Creep): void => {
   const construction = findClosestConstruction(builder);
   const maintenance = construction === null ? findClosestMaintenance(builder) : null;
   if (construction !== null) {
-    build(builder, construction);
+    builder.setAction(ACTION_BUILD, construction.id);
   } else if (maintenance !== null) {
-    maintain(builder, maintenance);
+    builder.setAction(ACTION_MAINTAIN, maintenance.id);
   } else {
-    moveToWorkerRallyPoint(builder);
-    sayCannotBuildOrMaintain(builder);
-  }
-};
-
-const setAction = (upgrader: Creep): void => {
-  if (upgrader.memory.action === ACTION_BUILD && upgrader.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-    upgrader.memory.action = ACTION_WITHDRAW;
-  } else if (upgrader.memory.action === ACTION_WITHDRAW && upgrader.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
-    upgrader.memory.action = ACTION_BUILD;
-  }
-};
-
-const executeAction = (builder: Creep): void => {
-  if (builder.memory.action === ACTION_WITHDRAW) {
-    withdraw(builder);
-  } else if (builder.memory.action === ACTION_BUILD) {
-    buildOrMaintain(builder);
-  } else {
-    throw new Error(`Action ${builder.memory.action} is unhandled for builders!`);
+    builder.setActionRally();
   }
 };
 
 export const shouldBuildOrMaintain = (room: Room): boolean => {
-  let shouldBuild = room.find(FIND_MY_CONSTRUCTION_SITES).length > 0;
-  if (shouldBuild === false) {
-    shouldBuild = room.memory.maintenanceList.length > 0;
+  let shouldBuildOrMaintain = room.find(FIND_MY_CONSTRUCTION_SITES).length > 0;
+  if (shouldBuildOrMaintain === false) {
+    shouldBuildOrMaintain = room.memory.maintenanceList.length > 0;
   }
 
-  return shouldBuild;
+  return shouldBuildOrMaintain;
 };
 
-export const onTick = (builder: Creep): void => {
-  if (shouldBuildOrMaintain(builder.room) === true) {
-    setAction(builder);
-    executeAction(builder);
-  } else {
-    moveToWorkerRallyPoint(builder);
-    sayCannotUpgrade(builder);
+export const setActionBuilder = (builder: Creep): void => {
+  if (shouldBuildOrMaintain(builder.room) === false) {
+    builder.setActionRally();
+  } else if (canTransitionToGather(builder) === true) {
+    setActionGatherer(builder);
+  } else if (canTransitionToWork(builder) === true) {
+    setActionBuildOrMaintain(builder);
   }
 };

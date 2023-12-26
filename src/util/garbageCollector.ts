@@ -1,6 +1,7 @@
 export const pruneCreepMemory = () => {
   for (const name in Memory.creeps) {
-    if (!(name in Game.creeps)) {
+    const creepIsAlive = name in Game.creeps;
+    if (!creepIsAlive) {
       delete Memory.creeps[name];
     }
   }
